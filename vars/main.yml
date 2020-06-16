@@ -1,0 +1,8 @@
+---
+
+target_servers:
+  - Docker
+  - Ubuntu18
+  - CentOS-7
+  
+...

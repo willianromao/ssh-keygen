@@ -1,0 +1,5 @@
+---
+# defaults file for ssh-keygen
+WORKDIR: ~/.ssh
+KEYNAME: id_rsa
+...

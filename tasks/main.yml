@@ -1,0 +1,46 @@
+---
+
+- name: Verificação do sudo
+  fail:
+    msg: 
+      - Rodar essa task com sudo pode trocar as chaves como root
+      - Desative o ansible_become para rodar essa task com o user {{ ansible_ssh_user }}
+  when: 
+      - ansible_become == 'yes' or not ansible_become is defined
+      - ansible_ssh_user != 'root'
+
+- name: Verificar se o sshpass está instalado
+  stat:
+     path: /usr/bin/sshpass
+  register: stat_sshpass
+
+- name: Resultado da verificação do sshpass
+  fail:
+    msg: 
+      - Falha ao encontrar o /usr/bin/sshpass no {{ ansible_hostname }}
+      - Instale o sshpass e rode a task novamente
+  when: not stat_sshpass.stat.exists
+
+- name: Geração da chave no host {{ ansible_hostname }}
+  openssh_keypair:
+    path: "{{ WORKDIR }}/{{ KEYNAME }}"
+    size: 2048
+    force: no
+
+- name: Criação de um arquivo temporário com a senha do ssh
+  shell:
+    cmd: echo {{ ansible_ssh_pass }} > {{ WORKDIR }}/pass.tmp
+
+- name: Instalação da chave nos servidores alvos
+  shell:
+    cmd: sshpass -f {{ WORKDIR }}/pass.tmp ssh-copy-id -o StrictHostKeyChecking=no -p {{ ansible_ssh_port }} -i {{ WORKDIR }}/{{ KEYNAME }} {{ ansible_ssh_user }}@{{ item }}
+  loop:  "{{ target_servers }}"
+  register: command_result
+  failed_when: "'ERROR' in command_result.stderr"
+  changed_when: " not 'All keys were skipped' in command_result.stderr"
+       
+- name: Remoção do arquivo temporário
+  file:
+    name: "{{ WORKDIR }}/pass.tmp"
+    state: absent
+...
